@@ -1,0 +1,184 @@
+"""A calculator that handles addition, substraction, multiplication, division, brackets, and variables."""
+from collections import deque
+
+
+def clean_up_expression(equation):
+    """Take an equation and clean it up.
+
+    Turn all numbers in integers.
+    Clean up multiple plus and minus signs.
+    """
+    # Clean up multiple + and - signs
+    clean_up_plus_minus = {'--': '+',
+                           '-+': '-',
+                           '+-': '-',
+                           '++': '+'}
+    for key, value in clean_up_plus_minus.items():
+        while key in equation:
+            equation = equation.replace(key, value)
+
+    # Add spaces around operators
+    operators = ['+', '-', '*', '/', '=', '(', ')']
+    for operator in operators:
+        equation = equation.replace(operator, f' {operator} ')
+
+    # Turn the equation into a list
+    equation = equation.split()
+
+    # If the equation starts with a + or -, add a zero
+    if equation[0] in ['+', '-']:
+        equation = [0] + equation
+
+    for index, part in enumerate(equation):
+        try:
+            equation[index] = int(part)
+        except ValueError:
+            pass
+    return equation
+
+
+def check_expression(equation):
+    """Check if the equation is valid."""
+    if len(equation) >= 2 and equation[1] == '=':
+        # Assignment
+        if equation[0].isalpha() is False:
+            print('Invalid identifier')
+            return False
+        return check_expression(equation[2:])
+    else:
+        # Evaluation
+        # Check brackets
+        counter = 0
+        for char in equation:
+            if char == '(':
+                counter += 1
+            elif char == ')':
+                counter -= 1
+                if counter < 0:
+                    print('Invalid expression')
+                    return False
+        if counter != 0:
+            print('Invalid expression')
+            return False
+        for index, part in enumerate(equation):
+            if index == 0:
+                if isinstance(part, int) or part in variables.keys():
+                    last_element = 'num'
+                    continue
+                elif part.isalpha():
+                    print('Unknown variable')
+                    return False
+                else:
+                    print('Invalid expression')
+                    return False
+            else:
+                if last_element == 'num':
+                    if part in ['+', '-', '*', '/']:
+                        last_element = 'oper'
+                        continue
+                    elif part == ')':
+                        continue
+                    else:
+                        print('Invalid expression')
+                        return False
+                else:
+                    if part == '(':
+                        continue
+                    elif isinstance(part, int) or part in variables.keys():
+                        last_element = 'num'
+                        continue
+                    elif part.isalpha():
+                        print('Unknown variable')
+                        return False
+                    else:
+                        print('Invalid expression')
+                        return False
+    return True
+
+
+def evaluate_expression(equation):
+    """Take an equation and evaluate it."""
+    global variables
+    if len(equation) >= 2 and equation[1] == '=':
+        # Assignment
+        variables[equation[0]] = evaluate_expression(equation[2:])
+        return
+    else:
+        # Infix to postfix
+        stack = deque()
+        result = []
+        for part in equation:
+            if isinstance(part, int) or part in variables.keys():
+                # Add operands to the result
+                result.append(part)
+            elif len(stack) == 0 or stack[-1] == '(':
+                # Stack empty or left parenthesis means append
+                stack.append(part)
+            elif stack[-1] in ['+', '-'] and part in ['*', '/']:
+                # Higher precedence means adding
+                stack.append(part)
+            elif part in ['+', '-', '*', '/']:
+                # Lower or equal means adding until lower precedence or (
+                while len(stack) > 0:
+                    if stack[-1] == '(':
+                        break
+                    elif stack[-1] in ['+', '-'] and part in ['*', '/']:
+                        break
+                    else:
+                        result.append(stack.pop())
+                stack.append(part)
+            elif part == '(':
+                # Left parenthesis
+                stack.append(part)
+            elif part == ')':
+                # Right bracket
+                while True:
+                    top = stack.pop()
+                    if top == '(':
+                        break
+                    else:
+                        result.append(top)
+        while len(stack) > 0:
+            result.append(stack.pop())
+
+        # Evaluate postfix
+        stack = deque()
+        for part in result:
+            if isinstance(part, int):
+                stack.append(part)
+            elif part in variables.keys():
+                stack.append(variables[part])
+            else:
+                b = stack.pop()
+                a = stack.pop()
+                if part == '+':
+                    stack.append(a + b)
+                elif part == '-':
+                    stack.append(a - b)
+                elif part == '*':
+                    stack.append(a * b)
+                else:
+                    stack.append(a // b)
+        return stack[0]
+
+
+variables = {}
+
+while True:
+    i = input()
+    if i == '':
+        continue
+    elif i == '/exit':
+        print('Bye!')
+        break
+    elif i == '/help':
+        print('The program calculates addition, subtraction, multiplication, '
+              'division, brackets, and variables.')
+    elif i[0] == '/':
+        print('Unknown command')
+    else:
+        i = clean_up_expression(i)
+        if check_expression(i):
+            result = evaluate_expression(i)
+            if result is not None:
+                print(result)
